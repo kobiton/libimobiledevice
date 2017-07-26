@@ -263,13 +263,30 @@ int main(int argc, char **argv)
 		}
 		break;
 
-		case OP_VALIDATE:
-		lerr = lockdownd_validate_pair(client, NULL);
-		if (lerr == LOCKDOWN_E_SUCCESS) {
-			printf("SUCCESS: Validated pairing with device %s\n", udid);
-		} else {
-			result = EXIT_FAILURE;
-			print_error_message(lerr);
+		case OP_VALIDATE: {
+			plist_t p_version = NULL;
+			int version = 0;
+			if (lockdownd_get_value(client, NULL, "ProductVersion", &p_version) == LOCKDOWN_E_SUCCESS) {
+				int vers[3] = {0, 0, 0};
+				char *s_version = NULL;
+				plist_get_string_val(p_version, &s_version);
+				if (s_version && sscanf(s_version, "%d.%d.%d", &vers[0], &vers[1], &vers[2]) >= 2) {
+					version = ((vers[0] & 0xFF) << 16) | ((vers[1] & 0xFF) << 8) | (vers[2] & 0xFF);
+				}
+				free(s_version);
+			}
+
+			// iOS 11 doesn't support validate pairing
+			if (version < 0x0b0000) {
+				lerr = lockdownd_validate_pair(client, NULL);
+			}
+
+			if (lerr == LOCKDOWN_E_SUCCESS) {
+				printf("SUCCESS: Validated pairing with device %s\n", udid);
+			} else {
+				result = EXIT_FAILURE;
+				print_error_message(lerr);
+			}
 		}
 		break;
 
